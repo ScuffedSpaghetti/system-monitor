@@ -42,3 +42,17 @@ for(var x in configFiles){
 		env: env,
 	}))
 }
+
+process.once("SIGINT", function (code) {
+	shutdown()
+});
+process.once("SIGTERM", function (code) {
+	shutdown()
+});
+
+async function shutdown(){
+	console.log("shutting down all clients")
+	for(var x in subProcesses){
+		subProcesses[x].kill("SIGTERM")
+	}
+}

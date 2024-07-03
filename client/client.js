@@ -291,10 +291,13 @@ if(config.get("verbose")){
 	process.env.VERBOSE = "true"
 }
 
+let running = true
+let currentCloseFunction = undefined
+
 console.log("connecting to " + webSocketAddress)
 void (async function(){
 	var devices = await getValidDevices()
-	while(true){
+	while(running){
 		await /** @type {Promise<void>} */(new Promise((resolve)=>{
 			var websocket = new WebSocket(webSocketAddress)
 			var interval = undefined
@@ -307,14 +310,20 @@ void (async function(){
 				if(intervalAlive){
 					clearInterval(intervalAlive)
 				}
-				setTimeout(()=>{
+				if(running){
+					setTimeout(()=>{
+						resolve()
+					},1000)
+				}else{
 					resolve()
-				},1000)
+				}
 				websocket.close()
 				if(process.env.VERBOSE){
 					console.error("Socket disconnected at "+Date())
 				}
+				currentCloseFunction = undefined
 			}
+			currentCloseFunction = close
 			websocket.onerror = close
 			websocket.onclose = close
 			function sendJSON(obj){
@@ -366,3 +375,19 @@ void (async function(){
 		}))
 	}
 })()
+
+
+process.once("SIGINT", function (code) {
+	shutdown()
+});
+process.once("SIGTERM", function (code) {
+	shutdown()
+});
+
+async function shutdown(){
+	console.log("shutting down client")
+	running = false
+	if(currentCloseFunction){
+		currentCloseFunction()
+	}
+}
